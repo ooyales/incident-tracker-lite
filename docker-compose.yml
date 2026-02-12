@@ -1,0 +1,26 @@
+services:
+  backend:
+    build: ./backend
+    container_name: incident-tracker-backend
+    ports:
+      - "5006:5000"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=sqlite:////app/data/incident_tracker.db
+      - SECRET_KEY=dev-secret
+      - JWT_SECRET_KEY=jwt-dev-secret
+    volumes:
+      - incident-data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: incident-tracker-frontend
+    ports:
+      - "6004:5173"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  incident-data:
