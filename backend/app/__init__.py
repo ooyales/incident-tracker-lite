@@ -38,6 +38,23 @@ def create_app(config_name=None):
             'app': 'incident-tracker-lite'
         })
 
+    # Demo auth (enabled via DEMO_AUTH_ENABLED env var)
+    try:
+        from demo_auth import init_demo_auth
+        from demo_sessions import SessionManager
+        db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        if db_uri.startswith('sqlite:///'):
+            template_db = os.path.join(app.instance_path, db_uri.replace('sqlite:///', ''))
+        else:
+            template_db = os.path.join(app.instance_path, 'incident_tracker.db')
+        _session_mgr = SessionManager(
+            template_db=template_db,
+            sessions_dir=os.path.join(os.path.dirname(app.instance_path), 'data', 'sessions')
+        )
+        init_demo_auth(app, session_manager=_session_mgr)
+    except ImportError:
+        pass
+
     register_cli(app)
     return app
 
