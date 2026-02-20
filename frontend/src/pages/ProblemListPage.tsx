@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bug, Search } from 'lucide-react';
 import { fetchProblems } from '@/api/problems';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import type { Problem } from '@/types';
 
 function fixStatusBadge(status: string): string {
@@ -46,6 +47,7 @@ const FIX_STATUSES = ['All', 'Open', 'In Progress', 'Resolved', 'Closed'];
 const PRIORITIES = ['All', 'Critical', 'High', 'Medium', 'Low'];
 
 export default function ProblemListPage() {
+  const isMobile = useIsMobile();
   const [problems, setProblems] = useState<Problem[]>(mockProblems);
   const [loading, setLoading] = useState(true);
   const [fixStatus, setFixStatus] = useState('All');
@@ -85,27 +87,27 @@ export default function ProblemListPage() {
       {/* Filter Bar */}
       <div className="eaw-card mb-4">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-eaw-muted" />
             <input
               type="text"
-              className="input-field pl-9"
+              className="w-full py-2 pr-3 pl-9 text-sm border border-eaw-border rounded outline-none transition-colors focus:border-eaw-primary focus:ring-1 focus:ring-eaw-primary"
               placeholder="Search problems..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <select className="select-field" value={fixStatus} onChange={(e) => setFixStatus(e.target.value)}>
+          <select className="select-field w-full sm:w-auto" value={fixStatus} onChange={(e) => setFixStatus(e.target.value)}>
             {FIX_STATUSES.map((s) => <option key={s} value={s}>{s === 'All' ? 'All Statuses' : s}</option>)}
           </select>
-          <select className="select-field" value={priority} onChange={(e) => setPriority(e.target.value)}>
+          <select className="select-field w-full sm:w-auto" value={priority} onChange={(e) => setPriority(e.target.value)}>
             {PRIORITIES.map((p) => <option key={p} value={p}>{p === 'All' ? 'All Priorities' : p}</option>)}
           </select>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="eaw-section">
+      {/* Desktop Table */}
+      <div className="eaw-section hidden md:block">
         <table className="eaw-table">
           <thead>
             <tr>
@@ -146,6 +148,37 @@ export default function ProblemListPage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden mobile-card-table">
+        {filtered.length === 0 ? (
+          <div className="eaw-card text-center text-eaw-muted py-8">
+            No problems found matching your filters.
+          </div>
+        ) : (
+          filtered.map((p) => (
+            <div
+              key={p.id}
+              className="mobile-card-row clickable"
+              onClick={() => navigate(`/problems/${p.id}`)}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-eaw-link font-medium text-sm">{p.problem_number}</span>
+                <span className={priorityBadge(p.priority)}>{p.priority}</span>
+              </div>
+              <p className="text-sm font-semibold text-eaw-font mb-2 line-clamp-2">{p.title}</p>
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className={fixStatusBadge(p.fix_status)}>{p.fix_status.replace('_', ' ')}</span>
+                <span className="badge-danger">{p.incident_count} incidents</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-eaw-muted">
+                <span>{p.root_cause_category ?? '-'}</span>
+                <span>{p.fix_owner ?? 'Unassigned'}</span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

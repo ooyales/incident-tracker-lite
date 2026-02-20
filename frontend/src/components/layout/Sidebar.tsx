@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -7,6 +6,7 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
+  X,
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -37,36 +37,65 @@ const sections: { title: string; items: SidebarItem[] }[] = [
   },
 ];
 
-export default function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+  isMobile?: boolean;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export default function Sidebar({
+  collapsed,
+  onToggle,
+  isMobile = false,
+  mobileOpen = false,
+  onMobileClose,
+}: SidebarProps) {
+  const showLabels = isMobile || !collapsed;
 
   return (
     <aside
       className={`fixed top-14 left-0 bottom-0 bg-white border-r border-eaw-border transition-all duration-200 z-40 flex flex-col ${
-        collapsed ? 'w-12' : 'w-56'
+        isMobile
+          ? `w-56 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`
+          : collapsed
+          ? 'w-12'
+          : 'w-56'
       }`}
     >
-      {/* Collapse toggle */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center gap-2 px-3 py-3 text-sm text-eaw-muted hover:bg-gray-50 border-b border-eaw-border w-full"
-        title={collapsed ? 'Expand' : 'Collapse'}
-      >
-        {collapsed ? (
-          <ChevronRight className="w-5 h-5 mx-auto" />
-        ) : (
-          <>
-            <ChevronLeft className="w-5 h-5" />
-            <span className="font-medium">Navigation</span>
-          </>
-        )}
-      </button>
+      {/* Collapse toggle (desktop) / Close button (mobile) */}
+      {isMobile ? (
+        <button
+          onClick={onMobileClose}
+          className="flex items-center gap-2 px-3 py-3 text-sm text-eaw-muted hover:bg-gray-50 border-b border-eaw-border w-full"
+          title="Close menu"
+        >
+          <X className="w-5 h-5" />
+          <span className="font-medium">Close</span>
+        </button>
+      ) : (
+        <button
+          onClick={onToggle}
+          className="flex items-center gap-2 px-3 py-3 text-sm text-eaw-muted hover:bg-gray-50 border-b border-eaw-border w-full"
+          title={collapsed ? 'Expand' : 'Collapse'}
+        >
+          {collapsed ? (
+            <ChevronRight className="w-5 h-5 mx-auto" />
+          ) : (
+            <>
+              <ChevronLeft className="w-5 h-5" />
+              <span className="font-medium">Navigation</span>
+            </>
+          )}
+        </button>
+      )}
 
       {/* Nav sections */}
       <nav className="flex-1 overflow-y-auto py-2">
         {sections.map((section) => (
           <div key={section.title} className="mb-2">
-            {!collapsed && (
+            {showLabels && (
               <div className="px-3 py-1.5 text-[10px] font-semibold text-eaw-muted uppercase tracking-wider">
                 {section.title}
               </div>
@@ -77,8 +106,8 @@ export default function Sidebar() {
                 to={item.to}
                 end={item.to === '/'}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2 text-sm transition-colors ${
-                    collapsed ? 'justify-center' : ''
+                  `flex items-center gap-3 px-3 py-2 min-h-[44px] text-sm transition-colors ${
+                    !showLabels ? 'justify-center' : ''
                   } ${
                     isActive
                       ? 'bg-eaw-primary text-white'
@@ -86,9 +115,12 @@ export default function Sidebar() {
                   }`
                 }
                 title={item.label}
+                onClick={() => {
+                  if (isMobile && onMobileClose) onMobileClose();
+                }}
               >
                 {item.icon}
-                {!collapsed && <span>{item.label}</span>}
+                {showLabels && <span>{item.label}</span>}
               </NavLink>
             ))}
           </div>

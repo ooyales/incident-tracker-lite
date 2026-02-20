@@ -24,6 +24,7 @@ import {
   Legend,
 } from 'recharts';
 import { fetchDashboard } from '@/api/dashboard';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import type { DashboardData, Incident, Problem, TimelineEntry } from '@/types';
 
 function severityBorderColor(severity: string): string {
@@ -128,6 +129,7 @@ function CollapsibleSection({ title, icon, defaultOpen = true, children }: { tit
 }
 
 export default function DashboardPage() {
+  const isMobile = useIsMobile();
   const [data, setData] = useState<DashboardData>(mockDashboard);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -164,7 +166,7 @@ export default function DashboardPage() {
       <h1 className="text-xl font-bold text-eaw-font mb-4">Dashboard</h1>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-6">
         <div className="kpi-card">
           <div className="kpi-icon bg-orange-100">
             <AlertTriangle className="w-6 h-6 text-orange-600" />
@@ -344,40 +346,68 @@ export default function DashboardPage() {
           title="Trending Problems"
           icon={<Bug className="w-4 h-4 text-eaw-danger" />}
         >
-          <table className="eaw-table">
-            <thead>
-              <tr>
-                <th>Problem #</th>
-                <th>Title</th>
-                <th>Incidents</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.trending_problems.map((p: Problem) => (
-                <tr
-                  key={p.id}
-                  className="cursor-pointer"
-                  onClick={() => navigate(`/problems/${p.id}`)}
-                >
-                  <td className="text-eaw-link font-medium">{p.problem_number}</td>
-                  <td className="max-w-[200px] truncate">{p.title}</td>
-                  <td>
-                    <span className="badge-danger">{p.incident_count}</span>
-                  </td>
-                  <td>
-                    <span className={
-                      p.fix_status === 'resolved' ? 'badge-success' :
-                      p.fix_status === 'in_progress' ? 'badge-warning' :
-                      'badge-info'
-                    }>
-                      {p.fix_status}
-                    </span>
-                  </td>
+          {/* Desktop table */}
+          <div className="hidden md:block">
+            <table className="eaw-table">
+              <thead>
+                <tr>
+                  <th>Problem #</th>
+                  <th>Title</th>
+                  <th>Incidents</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.trending_problems.map((p: Problem) => (
+                  <tr
+                    key={p.id}
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/problems/${p.id}`)}
+                  >
+                    <td className="text-eaw-link font-medium">{p.problem_number}</td>
+                    <td className="max-w-[200px] truncate">{p.title}</td>
+                    <td>
+                      <span className="badge-danger">{p.incident_count}</span>
+                    </td>
+                    <td>
+                      <span className={
+                        p.fix_status === 'resolved' ? 'badge-success' :
+                        p.fix_status === 'in_progress' ? 'badge-warning' :
+                        'badge-info'
+                      }>
+                        {p.fix_status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {/* Mobile cards */}
+          <div className="md:hidden mobile-card-table">
+            {data.trending_problems.map((p: Problem) => (
+              <div
+                key={p.id}
+                className="mobile-card-row clickable"
+                onClick={() => navigate(`/problems/${p.id}`)}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-eaw-link font-medium text-sm">{p.problem_number}</span>
+                  <span className={
+                    p.fix_status === 'resolved' ? 'badge-success' :
+                    p.fix_status === 'in_progress' ? 'badge-warning' :
+                    'badge-info'
+                  }>
+                    {p.fix_status}
+                  </span>
+                </div>
+                <p className="text-sm text-eaw-font mb-1 line-clamp-2">{p.title}</p>
+                <div className="text-xs text-eaw-muted">
+                  <span className="badge-danger">{p.incident_count}</span> linked incidents
+                </div>
+              </div>
+            ))}
+          </div>
         </CollapsibleSection>
       </div>
     </div>

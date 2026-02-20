@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { fetchIncident, updateIncidentStatus } from '@/api/incidents';
 import { addTimelineEntry } from '@/api/timeline';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import type { Incident, TimelineEntry, IncidentAsset, IncidentResponder, Communication } from '@/types';
 
 function severityBadge(severity: string): string {
@@ -165,6 +166,7 @@ function CollapsibleSection({
 export default function IncidentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [incident, setIncident] = useState<Incident | null>(null);
   const [loading, setLoading] = useState(true);
   const [newEntryContent, setNewEntryContent] = useState('');
@@ -387,9 +389,9 @@ export default function IncidentDetailPage() {
       <CollapsibleSection title="Timeline" icon={<Clock className="w-4 h-4 text-eaw-info" />}>
         {/* Add entry form */}
         <div className="mb-4 p-3 bg-gray-50 rounded border border-eaw-border">
-          <div className="flex items-start gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3">
             <select
-              className="select-field"
+              className="select-field w-full sm:w-auto"
               value={newEntryType}
               onChange={(e) => setNewEntryType(e.target.value)}
             >
@@ -405,7 +407,7 @@ export default function IncidentDetailPage() {
               rows={2}
             />
             <button
-              className="btn-primary"
+              className="btn-primary self-end sm:self-start"
               onClick={handleAddEntry}
               disabled={!newEntryContent.trim() || submittingEntry}
             >
@@ -447,21 +449,44 @@ export default function IncidentDetailPage() {
         {(incident.assets ?? []).length === 0 ? (
           <p className="text-sm text-eaw-muted">No assets linked to this incident.</p>
         ) : (
-          <table className="eaw-table">
-            <thead>
-              <tr>
-                <th>Asset Name</th>
-                <th>Type</th>
-                <th>Impact</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block">
+              <table className="eaw-table">
+                <thead>
+                  <tr>
+                    <th>Asset Name</th>
+                    <th>Type</th>
+                    <th>Impact</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(incident.assets ?? []).map((a: IncidentAsset) => (
+                    <tr key={a.id}>
+                      <td className="font-medium">{a.asset_name}</td>
+                      <td>{a.asset_type ?? '-'}</td>
+                      <td>
+                        <span className={
+                          a.impact_type === 'Down' ? 'badge-danger' :
+                          a.impact_type === 'Degraded' ? 'badge-warning' :
+                          'badge-info'
+                        }>
+                          {a.impact_type ?? '-'}
+                        </span>
+                      </td>
+                      <td className="text-sm text-eaw-muted">{a.notes ?? '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Mobile cards */}
+            <div className="md:hidden mobile-card-table">
               {(incident.assets ?? []).map((a: IncidentAsset) => (
-                <tr key={a.id}>
-                  <td className="font-medium">{a.asset_name}</td>
-                  <td>{a.asset_type ?? '-'}</td>
-                  <td>
+                <div key={a.id} className="mobile-card-row">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium text-sm text-eaw-font">{a.asset_name}</span>
                     <span className={
                       a.impact_type === 'Down' ? 'badge-danger' :
                       a.impact_type === 'Degraded' ? 'badge-warning' :
@@ -469,12 +494,13 @@ export default function IncidentDetailPage() {
                     }>
                       {a.impact_type ?? '-'}
                     </span>
-                  </td>
-                  <td className="text-sm text-eaw-muted">{a.notes ?? '-'}</td>
-                </tr>
+                  </div>
+                  <div className="text-xs text-eaw-muted">Type: {a.asset_type ?? '-'}</div>
+                  {a.notes && <div className="text-xs text-eaw-muted mt-1">{a.notes}</div>}
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </CollapsibleSection>
 
@@ -483,26 +509,43 @@ export default function IncidentDetailPage() {
         {(incident.responders ?? []).length === 0 ? (
           <p className="text-sm text-eaw-muted">No responders assigned.</p>
         ) : (
-          <table className="eaw-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Assigned At</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block">
+              <table className="eaw-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Assigned At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(incident.responders ?? []).map((r: IncidentResponder) => (
+                    <tr key={r.id}>
+                      <td className="font-medium">{r.person_name}</td>
+                      <td>
+                        <span className="badge-info">{r.role ?? '-'}</span>
+                      </td>
+                      <td className="text-sm text-eaw-muted">{formatDate(r.assigned_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Mobile cards */}
+            <div className="md:hidden mobile-card-table">
               {(incident.responders ?? []).map((r: IncidentResponder) => (
-                <tr key={r.id}>
-                  <td className="font-medium">{r.person_name}</td>
-                  <td>
+                <div key={r.id} className="mobile-card-row">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-medium text-sm text-eaw-font">{r.person_name}</span>
                     <span className="badge-info">{r.role ?? '-'}</span>
-                  </td>
-                  <td className="text-sm text-eaw-muted">{formatDate(r.assigned_at)}</td>
-                </tr>
+                  </div>
+                  <div className="text-xs text-eaw-muted">{formatDate(r.assigned_at)}</div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </CollapsibleSection>
 
@@ -536,7 +579,7 @@ export default function IncidentDetailPage() {
                 <p className="text-sm text-eaw-font mt-1">{incident.preventive_actions}</p>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-semibold text-eaw-muted uppercase">Resolved At</label>
                 <p className="text-sm text-eaw-font mt-1">{formatDate(incident.resolved_at)}</p>
@@ -555,28 +598,47 @@ export default function IncidentDetailPage() {
         {(incident.communications ?? []).length === 0 ? (
           <p className="text-sm text-eaw-muted">No communications logged.</p>
         ) : (
-          <table className="eaw-table">
-            <thead>
-              <tr>
-                <th>Channel</th>
-                <th>Recipient</th>
-                <th>Message</th>
-                <th>Sent At</th>
-                <th>Sent By</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block">
+              <table className="eaw-table">
+                <thead>
+                  <tr>
+                    <th>Channel</th>
+                    <th>Recipient</th>
+                    <th>Message</th>
+                    <th>Sent At</th>
+                    <th>Sent By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(incident.communications ?? []).map((c: Communication) => (
+                    <tr key={c.id}>
+                      <td><span className="badge-info">{c.channel ?? '-'}</span></td>
+                      <td className="font-medium">{c.recipient ?? '-'}</td>
+                      <td className="max-w-[250px] truncate text-sm">{c.message ?? '-'}</td>
+                      <td className="text-sm text-eaw-muted whitespace-nowrap">{formatDate(c.sent_at)}</td>
+                      <td>{c.sent_by ?? '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Mobile cards */}
+            <div className="md:hidden mobile-card-table">
               {(incident.communications ?? []).map((c: Communication) => (
-                <tr key={c.id}>
-                  <td><span className="badge-info">{c.channel ?? '-'}</span></td>
-                  <td className="font-medium">{c.recipient ?? '-'}</td>
-                  <td className="max-w-[250px] truncate text-sm">{c.message ?? '-'}</td>
-                  <td className="text-sm text-eaw-muted whitespace-nowrap">{formatDate(c.sent_at)}</td>
-                  <td>{c.sent_by ?? '-'}</td>
-                </tr>
+                <div key={c.id} className="mobile-card-row">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="badge-info">{c.channel ?? '-'}</span>
+                    <span className="text-xs text-eaw-muted">{formatDate(c.sent_at)}</span>
+                  </div>
+                  <div className="text-sm font-medium text-eaw-font mb-1">{c.recipient ?? '-'}</div>
+                  <p className="text-sm text-eaw-muted line-clamp-2">{c.message ?? '-'}</p>
+                  <div className="text-xs text-eaw-muted mt-1">by {c.sent_by ?? '-'}</div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </CollapsibleSection>
 

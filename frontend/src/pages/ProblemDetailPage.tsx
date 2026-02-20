@@ -13,6 +13,7 @@ import {
   Shield,
 } from 'lucide-react';
 import { fetchProblem } from '@/api/problems';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import type { Problem, Incident } from '@/types';
 
 function fixStatusBadge(status: string): string {
@@ -123,6 +124,7 @@ function CollapsibleSection({
 export default function ProblemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [problem, setProblem] = useState<Problem | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -252,34 +254,62 @@ export default function ProblemDetailPage() {
         {(problem.incidents ?? []).length === 0 ? (
           <p className="text-sm text-eaw-muted">No incidents linked to this problem.</p>
         ) : (
-          <table className="eaw-table">
-            <thead>
-              <tr>
-                <th>Incident #</th>
-                <th>Title</th>
-                <th>Severity</th>
-                <th>Status</th>
-                <th>Users Affected</th>
-                <th>Reported</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block">
+              <table className="eaw-table">
+                <thead>
+                  <tr>
+                    <th>Incident #</th>
+                    <th>Title</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                    <th>Users Affected</th>
+                    <th>Reported</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(problem.incidents ?? []).map((inc: Incident) => (
+                    <tr
+                      key={inc.id}
+                      className="cursor-pointer"
+                      onClick={() => navigate(`/incidents/${inc.id}`)}
+                    >
+                      <td className="text-eaw-link font-medium whitespace-nowrap">{inc.incident_number}</td>
+                      <td className="max-w-[250px] truncate">{inc.title}</td>
+                      <td><span className={severityBadge(inc.severity)}>{inc.severity}</span></td>
+                      <td><span className={statusBadge(inc.status)}>{inc.status}</span></td>
+                      <td>{inc.users_affected ?? '-'}</td>
+                      <td className="text-sm text-eaw-muted whitespace-nowrap">{formatDate(inc.reported_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Mobile cards */}
+            <div className="md:hidden mobile-card-table">
               {(problem.incidents ?? []).map((inc: Incident) => (
-                <tr
+                <div
                   key={inc.id}
-                  className="cursor-pointer"
+                  className="mobile-card-row clickable"
                   onClick={() => navigate(`/incidents/${inc.id}`)}
                 >
-                  <td className="text-eaw-link font-medium whitespace-nowrap">{inc.incident_number}</td>
-                  <td className="max-w-[250px] truncate">{inc.title}</td>
-                  <td><span className={severityBadge(inc.severity)}>{inc.severity}</span></td>
-                  <td><span className={statusBadge(inc.status)}>{inc.status}</span></td>
-                  <td>{inc.users_affected ?? '-'}</td>
-                  <td className="text-sm text-eaw-muted whitespace-nowrap">{formatDate(inc.reported_at)}</td>
-                </tr>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-eaw-link font-medium text-sm">{inc.incident_number}</span>
+                    <span className="text-xs text-eaw-muted">{formatDate(inc.reported_at)}</span>
+                  </div>
+                  <p className="text-sm font-semibold text-eaw-font mb-2 line-clamp-2">{inc.title}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={severityBadge(inc.severity)}>{inc.severity}</span>
+                    <span className={statusBadge(inc.status)}>{inc.status}</span>
+                    {inc.users_affected != null && (
+                      <span className="text-xs text-eaw-muted">{inc.users_affected} users</span>
+                    )}
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </CollapsibleSection>
 

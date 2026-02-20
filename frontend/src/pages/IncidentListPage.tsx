@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Search, AlertTriangle, X } from 'lucide-react';
 import { fetchIncidents, createIncident } from '@/api/incidents';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import type { Incident } from '@/types';
 
 function severityBadge(severity: string): string {
@@ -54,6 +55,7 @@ const STATUSES = ['All', 'Open', 'Investigating', 'Identified', 'Monitoring', 'R
 const CATEGORIES = ['All', 'Infrastructure', 'Application', 'Security', 'Network', 'Database'];
 
 export default function IncidentListPage() {
+  const isMobile = useIsMobile();
   const [incidents, setIncidents] = useState<Incident[]>(mockIncidents);
   const [loading, setLoading] = useState(true);
   const [severity, setSeverity] = useState('All');
@@ -113,30 +115,30 @@ export default function IncidentListPage() {
       {/* Filter Bar */}
       <div className="eaw-card mb-4">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-eaw-muted" />
             <input
               type="text"
-              className="input-field pl-9"
+              className="w-full py-2 pr-3 pl-9 text-sm border border-eaw-border rounded outline-none transition-colors focus:border-eaw-primary focus:ring-1 focus:ring-eaw-primary"
               placeholder="Search incidents..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <select className="select-field" value={severity} onChange={(e) => setSeverity(e.target.value)}>
+          <select className="select-field w-full sm:w-auto" value={severity} onChange={(e) => setSeverity(e.target.value)}>
             {SEVERITIES.map((s) => <option key={s} value={s}>{s === 'All' ? 'All Severities' : s}</option>)}
           </select>
-          <select className="select-field" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select className="select-field w-full sm:w-auto" value={status} onChange={(e) => setStatus(e.target.value)}>
             {STATUSES.map((s) => <option key={s} value={s}>{s === 'All' ? 'All Statuses' : s}</option>)}
           </select>
-          <select className="select-field" value={category} onChange={(e) => setCategory(e.target.value)}>
+          <select className="select-field w-full sm:w-auto" value={category} onChange={(e) => setCategory(e.target.value)}>
             {CATEGORIES.map((c) => <option key={c} value={c}>{c === 'All' ? 'All Categories' : c}</option>)}
           </select>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="eaw-section">
+      {/* Desktop Table */}
+      <div className="eaw-section hidden md:block">
         <table className="eaw-table">
           <thead>
             <tr>
@@ -175,6 +177,37 @@ export default function IncidentListPage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden mobile-card-table">
+        {filtered.length === 0 ? (
+          <div className="eaw-card text-center text-eaw-muted py-8">
+            No incidents found matching your filters.
+          </div>
+        ) : (
+          filtered.map((inc) => (
+            <div
+              key={inc.id}
+              className="mobile-card-row clickable"
+              onClick={() => navigate(`/incidents/${inc.id}`)}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-eaw-link font-medium text-sm">{inc.incident_number}</span>
+                <span className="text-xs text-eaw-muted">{timeAgo(inc.reported_at)}</span>
+              </div>
+              <p className="text-sm font-semibold text-eaw-font mb-2 line-clamp-2">{inc.title}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={severityBadge(inc.severity)}>{inc.severity}</span>
+                <span className={statusBadge(inc.status)}>{inc.status}</span>
+              </div>
+              <div className="flex items-center justify-between mt-2 text-xs text-eaw-muted">
+                <span>{inc.assigned_to ?? 'Unassigned'}</span>
+                <span>{new Date(inc.reported_at).toLocaleDateString()}</span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Create Incident Modal */}
