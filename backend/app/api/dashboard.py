@@ -38,6 +38,84 @@ CATEGORY_COLORS = {
 
 @dashboard_bp.route('', methods=['GET'])
 def get_dashboard():
+    """Get dashboard summary with KPIs, charts, and recent activity.
+    ---
+    tags:
+      - Dashboard
+    parameters:
+      - name: session_id
+        in: query
+        type: string
+        required: false
+        default: __default__
+        description: Session ID for demo isolation
+    responses:
+      200:
+        description: Dashboard data
+        schema:
+          type: object
+          properties:
+            active_incidents:
+              type: integer
+              description: Count of non-resolved/closed incidents
+            resolved_today:
+              type: integer
+              description: Count of incidents resolved today
+            mttr_hours:
+              type: number
+              description: Mean Time To Resolve in hours
+            mtta_minutes:
+              type: number
+              description: Mean Time To Acknowledge in minutes
+            sla_compliance_pct:
+              type: number
+              description: SLA compliance percentage
+            incidents_by_severity:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  value:
+                    type: integer
+                  color:
+                    type: string
+            incidents_by_status:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  value:
+                    type: integer
+                  color:
+                    type: string
+            incidents_by_category:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  value:
+                    type: integer
+                  color:
+                    type: string
+            recent_activity:
+              type: array
+              items:
+                $ref: '#/definitions/TimelineEntry'
+            trending_problems:
+              type: array
+              items:
+                $ref: '#/definitions/Problem'
+            open_incidents:
+              type: array
+              items:
+                $ref: '#/definitions/Incident'
+    """
     session_id = request.args.get('session_id', '__default__')
 
     # Active incidents (non-resolved, non-closed)

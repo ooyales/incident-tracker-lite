@@ -11,6 +11,33 @@ timeline_bp = Blueprint('timeline', __name__)
 
 @timeline_bp.route('/<incident_id>', methods=['GET'])
 def list_timeline(incident_id):
+    """List all timeline entries for an incident, ordered by created_at ascending.
+    ---
+    tags:
+      - Timeline
+    parameters:
+      - name: incident_id
+        in: path
+        type: string
+        required: true
+        description: Incident UUID
+      - name: session_id
+        in: query
+        type: string
+        required: false
+        default: __default__
+    responses:
+      200:
+        description: List of timeline entries
+        schema:
+          type: array
+          items:
+            $ref: '#/definitions/TimelineEntry'
+      404:
+        description: Incident not found
+        schema:
+          $ref: '#/definitions/Error'
+    """
     session_id = request.args.get('session_id', '__default__')
 
     incident = Incident.query.filter_by(id=incident_id, session_id=session_id).first()
@@ -27,6 +54,58 @@ def list_timeline(incident_id):
 
 @timeline_bp.route('/<incident_id>', methods=['POST'])
 def create_timeline_entry(incident_id):
+    """Add a new timeline entry to an incident.
+    ---
+    tags:
+      - Timeline
+    parameters:
+      - name: incident_id
+        in: path
+        type: string
+        required: true
+        description: Incident UUID
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - content
+          properties:
+            content:
+              type: string
+              example: Identified root cause as memory leak in worker process
+            entry_type:
+              type: string
+              enum: [update, status_change, assignment, resolution, communication]
+              default: update
+            author:
+              type: string
+            created_at:
+              type: string
+              format: date-time
+              description: Defaults to current UTC time
+            old_status:
+              type: string
+            new_status:
+              type: string
+            session_id:
+              type: string
+              default: __default__
+    responses:
+      201:
+        description: Timeline entry created
+        schema:
+          $ref: '#/definitions/TimelineEntry'
+      400:
+        description: Validation error
+        schema:
+          $ref: '#/definitions/Error'
+      404:
+        description: Incident not found
+        schema:
+          $ref: '#/definitions/Error'
+    """
     data = request.get_json()
     if not data:
         raise BadRequestError('Missing request body')

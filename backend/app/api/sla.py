@@ -9,6 +9,25 @@ sla_bp = Blueprint('sla', __name__)
 
 @sla_bp.route('', methods=['GET'])
 def list_sla_targets():
+    """List all SLA targets.
+    ---
+    tags:
+      - SLA
+    parameters:
+      - name: session_id
+        in: query
+        type: string
+        required: false
+        default: __default__
+        description: Session ID for demo isolation
+    responses:
+      200:
+        description: List of SLA targets
+        schema:
+          type: array
+          items:
+            $ref: '#/definitions/SLATarget'
+    """
     session_id = request.args.get('session_id', '__default__')
     targets = SLATarget.query.filter_by(session_id=session_id).all()
     return jsonify([t.to_dict() for t in targets])
@@ -16,6 +35,60 @@ def list_sla_targets():
 
 @sla_bp.route('/compliance', methods=['GET'])
 def get_sla_compliance():
+    """Get SLA compliance metrics — overall and per severity with breached incidents.
+    ---
+    tags:
+      - SLA
+    parameters:
+      - name: session_id
+        in: query
+        type: string
+        required: false
+        default: __default__
+        description: Session ID for demo isolation
+    responses:
+      200:
+        description: SLA compliance data
+        schema:
+          type: object
+          properties:
+            overall_compliance_pct:
+              type: number
+              description: Overall SLA compliance percentage
+            per_severity:
+              type: array
+              items:
+                type: object
+                properties:
+                  severity:
+                    type: string
+                    enum: [critical, high, medium, low]
+                  response_target_minutes:
+                    type: integer
+                  resolution_target_minutes:
+                    type: integer
+                  total_incidents:
+                    type: integer
+                  compliant:
+                    type: integer
+                  breached:
+                    type: integer
+                  compliance_pct:
+                    type: number
+                  breached_incidents:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        incident_number:
+                          type: string
+                        title:
+                          type: string
+                        resolution_minutes:
+                          type: number
+                        target_minutes:
+                          type: integer
+    """
     session_id = request.args.get('session_id', '__default__')
 
     sla_targets = {

@@ -20,6 +20,69 @@ VALID_CATEGORIES = {'outage', 'degradation', 'security', 'data_loss', 'access_is
 
 @incidents_bp.route('', methods=['GET'])
 def list_incidents():
+    """List all incidents with optional filters and pagination.
+    ---
+    tags:
+      - Incidents
+    parameters:
+      - name: session_id
+        in: query
+        type: string
+        required: false
+        default: __default__
+        description: Session ID for demo isolation
+      - name: page
+        in: query
+        type: integer
+        required: false
+        default: 1
+      - name: per_page
+        in: query
+        type: integer
+        required: false
+        default: 20
+      - name: status
+        in: query
+        type: string
+        required: false
+        enum: [open, investigating, identified, monitoring, resolved, closed]
+      - name: severity
+        in: query
+        type: string
+        required: false
+        enum: [critical, high, medium, low]
+      - name: category
+        in: query
+        type: string
+        required: false
+        enum: [outage, degradation, security, data_loss, access_issue, other]
+      - name: assigned_to
+        in: query
+        type: string
+        required: false
+        description: Filter by assignee (partial match)
+      - name: search
+        in: query
+        type: string
+        required: false
+        description: Search across title, description, incident_number
+    responses:
+      200:
+        description: Paginated list of incidents
+        schema:
+          type: object
+          properties:
+            incidents:
+              type: array
+              items:
+                $ref: '#/definitions/Incident'
+            total:
+              type: integer
+            page:
+              type: integer
+            per_page:
+              type: integer
+    """
     session_id = request.args.get('session_id', '__default__')
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
@@ -70,6 +133,69 @@ def list_incidents():
 
 @incidents_bp.route('', methods=['POST'])
 def create_incident():
+    """Create a new incident. Auto-generates incident number and initial timeline entry.
+    ---
+    tags:
+      - Incidents
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - title
+          properties:
+            title:
+              type: string
+              example: Database cluster outage
+            description:
+              type: string
+            severity:
+              type: string
+              enum: [critical, high, medium, low]
+              default: medium
+            category:
+              type: string
+              enum: [outage, degradation, security, data_loss, access_issue, other]
+              default: other
+            reported_at:
+              type: string
+              format: date-time
+            detected_at:
+              type: string
+              format: date-time
+            impact_description:
+              type: string
+            users_affected:
+              type: integer
+            business_impact:
+              type: string
+            data_breach:
+              type: integer
+              default: 0
+            reported_by:
+              type: string
+            assigned_to:
+              type: string
+            wiki_url:
+              type: string
+            tags:
+              type: string
+              default: "[]"
+            session_id:
+              type: string
+              default: __default__
+    responses:
+      201:
+        description: Incident created
+        schema:
+          $ref: '#/definitions/Incident'
+      400:
+        description: Validation error
+        schema:
+          $ref: '#/definitions/Error'
+    """
     data = request.get_json()
     if not data:
         raise BadRequestError('Missing request body')
@@ -125,6 +251,52 @@ def create_incident():
 
 @incidents_bp.route('/<incident_id>', methods=['GET'])
 def get_incident(incident_id):
+    """Get a single incident by ID with timeline, assets, responders, and communications.
+    ---
+    tags:
+      - Incidents
+    parameters:
+      - name: incident_id
+        in: path
+        type: string
+        required: true
+        description: Incident UUID
+      - name: session_id
+        in: query
+        type: string
+        required: false
+        default: __default__
+    responses:
+      200:
+        description: Incident details with related data
+        schema:
+          allOf:
+            - $ref: '#/definitions/Incident'
+            - type: object
+              properties:
+                timeline_entries:
+                  type: array
+                  items:
+                    $ref: '#/definitions/TimelineEntry'
+                assets:
+                  type: array
+                  items:
+                    $ref: '#/definitions/IncidentAsset'
+                responders:
+                  type: array
+                  items:
+                    $ref: '#/definitions/IncidentResponder'
+                communications:
+                  type: array
+                  items:
+                    $ref: '#/definitions/Communication'
+                problem:
+                  $ref: '#/definitions/Problem'
+      404:
+        description: Incident not found
+        schema:
+          $ref: '#/definitions/Error'
+    """
     session_id = request.args.get('session_id', '__default__')
 
     incident = Incident.query.filter_by(id=incident_id, session_id=session_id).first()
@@ -148,6 +320,97 @@ def get_incident(incident_id):
 
 @incidents_bp.route('/<incident_id>', methods=['PUT'])
 def update_incident(incident_id):
+    """Update an existing incident.
+    ---
+    tags:
+      - Incidents
+    parameters:
+      - name: incident_id
+        in: path
+        type: string
+        required: true
+        description: Incident UUID
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            title:
+              type: string
+            description:
+              type: string
+            severity:
+              type: string
+              enum: [critical, high, medium, low]
+            category:
+              type: string
+              enum: [outage, degradation, security, data_loss, access_issue, other]
+            status:
+              type: string
+              enum: [open, investigating, identified, monitoring, resolved, closed]
+            detected_at:
+              type: string
+              format: date-time
+            acknowledged_at:
+              type: string
+              format: date-time
+            resolved_at:
+              type: string
+              format: date-time
+            closed_at:
+              type: string
+              format: date-time
+            impact_description:
+              type: string
+            users_affected:
+              type: integer
+            business_impact:
+              type: string
+            data_breach:
+              type: integer
+            reported_by:
+              type: string
+            assigned_to:
+              type: string
+            resolved_by:
+              type: string
+            resolution_summary:
+              type: string
+            root_cause:
+              type: string
+            workaround:
+              type: string
+            problem_id:
+              type: string
+              format: uuid
+            wiki_url:
+              type: string
+            post_incident_completed:
+              type: integer
+            lessons_learned:
+              type: string
+            preventive_actions:
+              type: string
+            tags:
+              type: string
+            session_id:
+              type: string
+              default: __default__
+    responses:
+      200:
+        description: Updated incident
+        schema:
+          $ref: '#/definitions/Incident'
+      400:
+        description: Missing request body
+        schema:
+          $ref: '#/definitions/Error'
+      404:
+        description: Incident not found
+        schema:
+          $ref: '#/definitions/Error'
+    """
     data = request.get_json()
     if not data:
         raise BadRequestError('Missing request body')
@@ -181,6 +444,50 @@ def update_incident(incident_id):
 
 @incidents_bp.route('/<incident_id>/status', methods=['PUT'])
 def update_status(incident_id):
+    """Update incident status with auto-timestamps and timeline entry.
+    ---
+    tags:
+      - Incidents
+    parameters:
+      - name: incident_id
+        in: path
+        type: string
+        required: true
+        description: Incident UUID
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - status
+          properties:
+            status:
+              type: string
+              enum: [open, investigating, identified, monitoring, resolved, closed]
+            author:
+              type: string
+              default: System
+            content:
+              type: string
+              description: Custom timeline entry content (auto-generated if omitted)
+            session_id:
+              type: string
+              default: __default__
+    responses:
+      200:
+        description: Incident with updated status
+        schema:
+          $ref: '#/definitions/Incident'
+      400:
+        description: Invalid status value
+        schema:
+          $ref: '#/definitions/Error'
+      404:
+        description: Incident not found
+        schema:
+          $ref: '#/definitions/Error'
+    """
     data = request.get_json()
     if not data:
         raise BadRequestError('Missing request body')
@@ -229,6 +536,47 @@ def update_status(incident_id):
 
 @incidents_bp.route('/<incident_id>/assign', methods=['PUT'])
 def assign_incident(incident_id):
+    """Assign or reassign an incident to a person.
+    ---
+    tags:
+      - Incidents
+    parameters:
+      - name: incident_id
+        in: path
+        type: string
+        required: true
+        description: Incident UUID
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - assigned_to
+          properties:
+            assigned_to:
+              type: string
+              example: John Smith
+            author:
+              type: string
+              default: System
+            session_id:
+              type: string
+              default: __default__
+    responses:
+      200:
+        description: Incident with updated assignment
+        schema:
+          $ref: '#/definitions/Incident'
+      400:
+        description: Missing assigned_to field
+        schema:
+          $ref: '#/definitions/Error'
+      404:
+        description: Incident not found
+        schema:
+          $ref: '#/definitions/Error'
+    """
     data = request.get_json()
     if not data:
         raise BadRequestError('Missing request body')
@@ -269,6 +617,49 @@ def assign_incident(incident_id):
 
 @incidents_bp.route('/<incident_id>/resolve', methods=['PUT'])
 def resolve_incident(incident_id):
+    """Resolve an incident with resolution details and timeline entry.
+    ---
+    tags:
+      - Incidents
+    parameters:
+      - name: incident_id
+        in: path
+        type: string
+        required: true
+        description: Incident UUID
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            resolved_at:
+              type: string
+              format: date-time
+              description: Defaults to current UTC time
+            resolved_by:
+              type: string
+            resolution_summary:
+              type: string
+            root_cause:
+              type: string
+            session_id:
+              type: string
+              default: __default__
+    responses:
+      200:
+        description: Resolved incident
+        schema:
+          $ref: '#/definitions/Incident'
+      400:
+        description: Missing request body
+        schema:
+          $ref: '#/definitions/Error'
+      404:
+        description: Incident not found
+        schema:
+          $ref: '#/definitions/Error'
+    """
     data = request.get_json()
     if not data:
         raise BadRequestError('Missing request body')
@@ -308,6 +699,58 @@ def resolve_incident(incident_id):
 
 @incidents_bp.route('/<incident_id>/report', methods=['GET'])
 def get_report(incident_id):
+    """Get a full post-incident report with timeline, assets, responders, and duration.
+    ---
+    tags:
+      - Incidents
+    parameters:
+      - name: incident_id
+        in: path
+        type: string
+        required: true
+        description: Incident UUID
+      - name: session_id
+        in: query
+        type: string
+        required: false
+        default: __default__
+    responses:
+      200:
+        description: Full incident report
+        schema:
+          type: object
+          properties:
+            incident:
+              $ref: '#/definitions/Incident'
+            timeline:
+              type: array
+              items:
+                $ref: '#/definitions/TimelineEntry'
+            affected_assets:
+              type: array
+              items:
+                $ref: '#/definitions/IncidentAsset'
+            responders:
+              type: array
+              items:
+                $ref: '#/definitions/IncidentResponder'
+            communications:
+              type: array
+              items:
+                $ref: '#/definitions/Communication'
+            duration_hours:
+              type: number
+              description: Time from reported to resolved in hours
+            problem:
+              $ref: '#/definitions/Problem'
+            report_generated_at:
+              type: string
+              format: date-time
+      404:
+        description: Incident not found
+        schema:
+          $ref: '#/definitions/Error'
+    """
     session_id = request.args.get('session_id', '__default__')
     incident = Incident.query.filter_by(id=incident_id, session_id=session_id).first()
     if not incident:

@@ -25,6 +25,50 @@ DEMO_USERS = {
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
+    """Authenticate and get a JWT token.
+    ---
+    tags:
+      - Auth
+    security: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - username
+            - password
+          properties:
+            username:
+              type: string
+              example: admin
+            password:
+              type: string
+              example: admin123
+    responses:
+      200:
+        description: Login successful
+        schema:
+          type: object
+          properties:
+            token:
+              type: string
+              description: JWT access token
+            access_token:
+              type: string
+              description: JWT access token (alias)
+            user:
+              $ref: '#/definitions/LoginUser'
+      400:
+        description: Missing request body
+        schema:
+          $ref: '#/definitions/Error'
+      401:
+        description: Invalid username or password
+        schema:
+          $ref: '#/definitions/Error'
+    """
     data = request.get_json()
     if not data:
         return jsonify({'message': 'Missing request body'}), 400
@@ -56,6 +100,20 @@ def login():
 @auth_bp.route('/me', methods=['GET'])
 @jwt_required()
 def me():
+    """Get the current authenticated user profile.
+    ---
+    tags:
+      - Auth
+    responses:
+      200:
+        description: Current user profile
+        schema:
+          $ref: '#/definitions/LoginUser'
+      404:
+        description: User not found
+        schema:
+          $ref: '#/definitions/Error'
+    """
     current_user_id = get_jwt_identity()
     for user in DEMO_USERS.values():
         if user['id'] == current_user_id:
